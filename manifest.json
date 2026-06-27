@@ -1,0 +1,13 @@
+{
+  "name": "MENËL Maintenance",
+  "short_name": "MENËL",
+  "description": "Oyster 495 · Maintenance Log",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1c0d",
+  "theme_color": "#0d1c0d",
+  "orientation": "any",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MENËL">
+<meta name="theme-color" content="#0d1c0d">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>MENËL · Maintenance Log</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Inter', system-ui, sans-serif; background: #f0efe9; min-height: 100vh; color: #1a1a1a; }
+
+  .header { background: #0d1c0d; color: white; padding: 20px 18px 0; padding-top: max(20px, env(safe-area-inset-top)); }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
+  .header-eyebrow { font-size: 10px; letter-spacing: 0.15em; color: #6daa6d; text-transform: uppercase; margin-bottom: 4px; }
+  .header-title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+  .header-sub { font-size: 11px; color: #888; margin-top: 3px; }
+  .header-date { font-size: 11px; color: #6daa6d; text-align: right; }
+  .summary-row { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; padding-bottom: 16px; }
+  .summary-pill { background: rgba(255,255,255,0.08); border-radius: 10px; padding: 8px 14px; min-width: 140px; }
+  .pill-label { font-size: 9px; color: #6daa6d; letter-spacing: 0.1em; text-transform: uppercase; }
+  .pill-count { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .pill-count span { font-size: 13px; color: #888; }
+  .pbar-wrap { background: rgba(255,255,255,0.15); border-radius: 4px; height: 5px; margin-top: 4px; overflow: hidden; }
+  .pbar { height: 100%; border-radius: 4px; background: #5aaa5a; transition: width 0.3s; }
+
+  .tabs { background: white; border-bottom: 1px solid #e0e0e0; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab-btn { border: none; background: none; cursor: pointer; padding: 13px 18px; font-size: 13.5px; white-space: nowrap; font-family: inherit; color: #888; border-bottom: 2.5px solid transparent; transition: all 0.15s; font-weight: 400; }
+  .tab-btn.active { color: #1a6b3c; border-bottom-color: #1a6b3c; font-weight: 700; }
+
+  .content { max-width: 720px; margin: 0 auto; padding: 22px 14px 80px; }
+
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 8px; }
+  .section-title { font-size: 17px; font-weight: 700; }
+  .section-sub { font-size: 12px; color: #888; margin-top: 2px; }
+  .all-done-badge { background: #e6f4ed; color: #1a6b3c; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; }
+
+  .cat-block { margin-bottom: 22px; }
+  .cat-label { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+  .cat-bar { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; }
+  .cat-name { font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
+
+  .task-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; border-radius: 9px; cursor: pointer; border: 1px solid #e8e8e8; background: #fafafa; margin-bottom: 4px; transition: background 0.12s, border-color 0.12s; -webkit-tap-highlight-color: transparent; user-select: none; }
+  .task-item.done { background: #f0f7f3; border-color: #b8dfc9; }
+  .task-item:active { opacity: 0.75; }
+  .check-box { width: 18px; height: 18px; border-radius: 5px; border: 2px solid #ccc; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; transition: all 0.12s; }
+  .check-box.checked { background: var(--cat-color, #1a6b3c); border-color: var(--cat-color, #1a6b3c); }
+  .check-icon { display: none; }
+  .check-box.checked .check-icon { display: block; }
+  .task-body { flex: 1; min-width: 0; }
+  .task-text { font-size: 13.5px; line-height: 1.45; color: #1a1a1a; }
+  .task-item.done .task-text { color: #999; text-decoration: line-through; }
+  .daily-badge { display: inline-block; margin-left: 6px; font-size: 9px; font-weight: 700; letter-spacing: 0.05em; background: #fff3e0; color: #d07000; border-radius: 4px; padding: 1px 5px; vertical-align: middle; }
+  .task-time { font-size: 10px; color: #bbb; margin-top: 3px; }
+
+  .note-textarea { width: 100%; min-height: 90px; border: 1px solid #ddd; border-radius: 9px; padding: 11px 12px; font-size: 13.5px; font-family: inherit; resize: vertical; outline: none; color: #1a1a1a; background: white; }
+  .note-textarea:focus { border-color: #1a6b3c; }
+  .note-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .btn-primary { background: #0d1c0d; color: white; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; flex-shrink: 0; }
+  .btn-primary:active { opacity: 0.8; }
+  .btn-photo { background: white; color: #1a6b3c; border: 1.5px solid #1a6b3c; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  #photo-input { display: none; }
+
+  .note-card { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+  .note-meta { font-size: 10px; color: #bbb; margin-bottom: 5px; }
+  .note-text { font-size: 13.5px; color: #1a1a1a; white-space: pre-wrap; line-height: 1.5; }
+  .note-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .note-photo-wrap { position: relative; }
+  .note-photo { width: 80px; height: 80px; object-fit: cover; border-radius: 7px; cursor: pointer; display: block; }
+  .note-photo-del { position: absolute; top: -5px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: #cc2200; color: white; border: none; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .note-footer { display: flex; justify-content: flex-end; margin-top: 8px; }
+  .btn-del-note { border: none; background: none; color: #ccc; cursor: pointer; font-size: 13px; padding: 2px 6px; }
+
+  .hist-section-title { font-size: 13px; font-weight: 700; color: #555; margin-bottom: 8px; margin-top: 20px; }
+  .hist-card { background: white; border: 1px solid #e0e0e0; border-radius: 10px; padding: 11px 14px; margin-bottom: 8px; }
+  .hist-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+  .hist-name { font-size: 13.5px; font-weight: 600; }
+  .hist-pct { font-size: 12px; font-weight: 700; }
+  .hist-tasks { font-size: 10px; color: #bbb; margin-top: 3px; }
+
+  .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 9999; align-items: center; justify-content: center; }
+  .lightbox.open { display: flex; }
+  .lightbox img { max-width: 95vw; max-height: 90vh; border-radius: 8px; object-fit: contain; }
+  .lightbox-close { position: fixed; top: 18px; right: 18px; font-size: 28px; color: white; cursor: pointer; background: none; border: none; line-height: 1; }
+
+  .pending-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .pending-photo-wrap { position: relative; }
+  .pending-photo { width: 64px; height: 64px; object-fit: cover; border-radius: 7px; display: block; }
+  .pending-photo-del { position: absolute; top: -5px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: #cc2200; color: white; border: none; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+  .empty-state { color: #bbb; font-size: 13px; text-align: center; padding: 40px 20px; }
+  .note-input-card { background: white; border-radius: 12px; padding: 14px; border: 1px solid #e0e0e0; margin-bottom: 18px; }
+
+  .install-banner { display: none; background: #1a6b3c; color: white; padding: 10px 16px; font-size: 12px; text-align: center; }
+  .install-banner.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="install-banner" id="install-banner">
+  📱 Dodaj do ekranu głównego: Safari → <strong>Share</strong> → <strong>Add to Home Screen</strong>
+</div>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-eyebrow">Oyster Yachts · Maintenance Log</div>
+      <div class="header-title">MENËL</div>
+      <div class="header-sub">Oyster 495 · Hull No 23 · St Helier, Jersey</div>
+    </div>
+    <div class="header-date" id="today-date"></div>
+  </div>
+  <div class="summary-row">
+    <div class="summary-pill">
+      <div class="pill-label">This Week</div>
+      <div class="pill-count" id="week-count">0<span>/38</span></div>
+      <div class="pbar-wrap"><div class="pbar" id="week-pbar" style="width:0%"></div></div>
+    </div>
+    <div class="summary-pill">
+      <div class="pill-label">This Month</div>
+      <div class="pill-count" id="month-count">0<span>/49</span></div>
+      <div class="pbar-wrap"><div class="pbar" id="month-pbar" style="width:0%"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('weekly')">Weekly</button>
+  <button class="tab-btn" onclick="switchTab('monthly')">Monthly</button>
+  <button class="tab-btn" onclick="switchTab('notes')">Notes</button>
+  <button class="tab-btn" onclick="switchTab('history')">History</button>
+</div>
+
+<div class="content">
+  <div id="tab-weekly"></div>
+  <div id="tab-monthly" style="display:none"></div>
+  <div id="tab-notes" style="display:none"></div>
+  <div id="tab-history" style="display:none"></div>
+</div>
+
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<input type="file" id="photo-input" accept="image/*" multiple capture="environment">
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────
+const WEEKLY = [
+  {cat:"Engine & Gearbox", color:"#1a6b3c", tasks:[
+    {id:"w1", t:"Oil and coolant levels", daily:true},
+    {id:"w2", t:"Check for leaks, bilge cleanliness and engine room condition", daily:true},
+    {id:"w3", t:"Security of wiring"},
+    {id:"w4", t:"Belt tensions and condition of belts"},
+    {id:"w5", t:"Gearbox oil level — note hours to next service"},
+    {id:"w6", t:"Raw water strainer — visual check"},
+  ]},
+  {cat:"Generator", color:"#1e5a8a", tasks:[
+    {id:"w7", t:"Oil and coolant levels", daily:true},
+    {id:"w8", t:"Check for leaks and condition of generator enclosure", daily:true},
+    {id:"w9", t:"Belt tensions"},
+    {id:"w10", t:"Condition of AC and DC wiring"},
+    {id:"w11", t:"Raw water strainer — visual check"},
+  ]},
+  {cat:"DC Electrics", color:"#7b3fa0", tasks:[
+    {id:"w12", t:"State of charge", daily:true},
+    {id:"w13", t:"Battery electrolyte levels (if applicable)"},
+    {id:"w14", t:"Navigation lights", daily:true},
+  ]},
+  {cat:"Hydraulics", color:"#8a4e1e", tasks:[
+    {id:"w15", t:"Fluid level and signs of leaks"},
+    {id:"w16", t:"Check filter gauge for filter condition"},
+  ]},
+  {cat:"Steering", color:"#6b3a1a", tasks:[
+    {id:"w17", t:"Check lower rudder bearings for leaks"},
+    {id:"w18", t:"Check drag links in lazarette"},
+    {id:"w19", t:"Autopilot drive — security and corrosion"},
+  ]},
+  {cat:"Bilge", color:"#1a5c6b", tasks:[
+    {id:"w20", t:"Operation of manual and electric pumps"},
+    {id:"w21", t:"Operation of automatic pump switching"},
+    {id:"w22", t:"Operation of high bilge alarm"},
+    {id:"w23", t:"Strum box and bilge clear of foreign objects"},
+  ]},
+  {cat:"Air Conditioning", color:"#2d6b8a", tasks:[
+    {id:"w24", t:"Clear raw water strainers"},
+  ]},
+  {cat:"Watermaker", color:"#1e7a6b", tasks:[
+    {id:"w25", t:"Auto back-flush on (if not in use) with sufficient water"},
+    {id:"w26", t:"Turn backflush off if watermaker in daily use on passage"},
+    {id:"w27", t:"Check condition of pre-filters"},
+  ]},
+  {cat:"Fridge & Freezer", color:"#3a5fa0", tasks:[
+    {id:"w28", t:"Check operating at desired temperatures", daily:true},
+    {id:"w29", t:"Drain fluids and clean as required"},
+    {id:"w30", t:"Clear raw water strainers"},
+  ]},
+  {cat:"Black Water Tanks", color:"#5a5a5a", tasks:[
+    {id:"w31", t:"Check levels", daily:true},
+    {id:"w32", t:"Drain/pump as necessary (min. 3 miles offshore)"},
+  ]},
+  {cat:"Drains", color:"#6b6b1a", tasks:[
+    {id:"w33", t:"Check all drains clear: deck, deck lockers, gas locker, anchor locker"},
+  ]},
+  {cat:"On Deck", color:"#1a6b2a", tasks:[
+    {id:"w34", t:"Visual check of all deck gear including hatches", daily:true},
+    {id:"w35", t:"Visual check of spars and rigging from deck level", daily:true},
+    {id:"w36", t:"Fresh water rinse of brightwork, windows, hatches"},
+    {id:"w37", t:"Inspection of sheet tracks and cars"},
+  ]},
+  {cat:"Stern Gear", color:"#8a1e3a", tasks:[
+    {id:"w38", t:"Saildrive: check membrane / Shaftdrive: check shaft seal"},
+  ]},
+];
+
+const MONTHLY = [
+  {cat:"Engine", color:"#1a6b3c", tasks:[
+    {id:"m1", t:"Review hours till next scheduled service"},
+    {id:"m2", t:"Inspect flexible fuel lines for chafe"},
+    {id:"m3", t:"Inspect zincs (per engine manual)"},
+    {id:"m4", t:"Inspect Racor fuel filter cartridge and bowl"},
+  ]},
+  {cat:"Generator", color:"#1e5a8a", tasks:[
+    {id:"m5", t:"Review hours till next scheduled service"},
+    {id:"m6", t:"Inspect flexible fuel lines for chafe"},
+    {id:"m7", t:"Inspect zincs"},
+    {id:"m8", t:"Inspect Racor fuel filter cartridge and bowl"},
+  ]},
+  {cat:"Stern Gear", color:"#8a1e3a", tasks:[
+    {id:"m9", t:"Check condition of flexible coupling and thrust bearing"},
+    {id:"m10", t:"Check condition of water feed to shaft seal"},
+  ]},
+  {cat:"DC Electrics", color:"#7b3fa0", tasks:[
+    {id:"m11", t:"Check battery connections — secure and greased"},
+    {id:"m12", t:"Check high-amperage connections (thrusters, engine, generator, windlass)"},
+    {id:"m13", t:"Wet cell batteries: check and record specific gravities"},
+    {id:"m14", t:"Fully charge all batteries"},
+  ]},
+  {cat:"Steering", color:"#6b3a1a", tasks:[
+    {id:"m15", t:"Check UV joints, bearings, couplings and bevel boxes"},
+  ]},
+  {cat:"Topsides & Stainless", color:"#7a7a1e", tasks:[
+    {id:"m16", t:"Wash, clean, and polish as required"},
+    {id:"m17", t:"Clean and lubricate hatch seals (no petroleum-based lubricants)"},
+  ]},
+  {cat:"Fresh Water", color:"#1e7ab8", tasks:[
+    {id:"m18", t:"Clear strainers in taps and showers"},
+    {id:"m19", t:"Clean pressure pump gauze"},
+    {id:"m20", t:"Operate calorifier pressure relief valve"},
+  ]},
+  {cat:"Black Water", color:"#5a5a5a", tasks:[
+    {id:"m21", t:"Flush tanks"},
+  ]},
+  {cat:"Bilge", color:"#1a5c6b", tasks:[
+    {id:"m22", t:"Flush main bilge with fresh water, remove all debris"},
+    {id:"m23", t:"Check operation of all bilge pumps inc. auto-switching and alarms"},
+    {id:"m24", t:"Exercise all seacocks"},
+    {id:"m25", t:"Clean log/depth transducer"},
+  ]},
+  {cat:"On Deck", color:"#1a6b2a", tasks:[
+    {id:"m26", t:"Fresh water wash off teak deck"},
+    {id:"m27", t:"External varnish — touch up as required"},
+    {id:"m28", t:"Check stem head assembly"},
+  ]},
+  {cat:"Winches & Windlass", color:"#6b4a1a", tasks:[
+    {id:"m29", t:"Check operation, assess for service"},
+  ]},
+  {cat:"Anchors & Chains", color:"#4a4a6b", tasks:[
+    {id:"m30", t:"Fresh water flush of anchor locker"},
+    {id:"m31", t:"Check condition of anchor and chain"},
+    {id:"m32", t:"Check condition of kedge line and anchors"},
+  ]},
+  {cat:"Mast & Standing Rigging", color:"#8a3a1e", tasks:[
+    {id:"m33", t:"Mast inspection including radar bracket and reflector"},
+    {id:"m34", t:"Inspect high load points: gooseneck, vang, chainplates"},
+    {id:"m35", t:"Toggles, clevis pins, wire/rod condition"},
+  ]},
+  {cat:"Running Rigging", color:"#6b1e5a", tasks:[
+    {id:"m36", t:"Mouse out and check for chafe"},
+    {id:"m37", t:"Fastenings, blocks and traveller cars"},
+    {id:"m38", t:"Flush cars and blocks with exposed bearings with fresh water"},
+    {id:"m39", t:"Check splices and hard eyes"},
+  ]},
+  {cat:"Sails", color:"#3a6b5a", tasks:[
+    {id:"m40", t:"Check for chafe and general condition"},
+    {id:"m41", t:"Stowed sails — dry and free of mildew"},
+  ]},
+  {cat:"Safety & LSA", color:"#b83a1e", tasks:[
+    {id:"m42", t:"Condition of lifejackets"},
+    {id:"m43", t:"Date of next life raft service"},
+    {id:"m44", t:"Test EPIRB (read instructions first)"},
+    {id:"m45", t:"Contents of grab bag"},
+    {id:"m46", t:"Flashlight, horseshoe buoy and handheld VHF batteries"},
+    {id:"m47", t:"Check fire extinguishers — pressure and expiry date"},
+    {id:"m48", t:"Security of jackstays, guardrails, stanchions, life rings"},
+    {id:"m49", t:"Rehearse/discuss emergency scenarios: MOB, fire, etc."},
+  ]},
+];
+
+// ─── STATE ───────────────────────────────────────────────────────────
+const STORE_KEY = "menel_v2";
+let state = { weekly:{}, monthly:{}, notes:[] };
+try { const r = localStorage.getItem(STORE_KEY); if(r) state = JSON.parse(r); } catch{}
+if(!state.notes) state.notes = [];
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch{} }
+
+function weekKey() {
+  const now = new Date(), y = now.getFullYear();
+  const s = new Date(y,0,1);
+  const w = Math.ceil(((now-s)/86400000 + s.getDay()+1)/7);
+  return `${y}-W${String(w).padStart(2,"0")}`;
+}
+function monthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+}
+function fmtWeek(k) { if(!k) return ""; const [y,w]=k.split("-W"); return `Week ${w}, ${y}`; }
+function fmtMonth(k) {
+  if(!k) return "";
+  const [y,m]=k.split("-");
+  return new Date(y,m-1,1).toLocaleString("en-GB",{month:"long",year:"numeric"});
+}
+function fmtDT(iso) {
+  return new Date(iso).toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+}
+
+const WK = weekKey(), MK = monthKey();
+let pendingPhotos = [];
+
+// ─── PROGRESS ────────────────────────────────────────────────────────
+function allTasks(list) { return list.flatMap(g=>g.tasks); }
+function calcProgress(list, period, pk) {
+  const tasks = allTasks(list);
+  const done = tasks.filter(t => state[period]?.[pk]?.[t.id]?.done).length;
+  return {done, total:tasks.length, pct: Math.round(done/tasks.length*100)};
+}
+function updateSummary() {
+  const wp = calcProgress(WEEKLY,"weekly",WK);
+  const mp = calcProgress(MONTHLY,"monthly",MK);
+  document.getElementById("week-count").innerHTML = `${wp.done}<span>/${wp.total}</span>`;
+  document.getElementById("month-count").innerHTML = `${mp.done}<span>/${mp.total}</span>`;
+  document.getElementById("week-pbar").style.width = wp.pct+"%";
+  document.getElementById("month-pbar").style.width = mp.pct+"%";
+}
+
+document.getElementById("today-date").textContent =
+  new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+
+// Show install banner if not standalone
+if(!window.navigator.standalone) {
+  document.getElementById("install-banner").classList.add("show");
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────
+let currentTab = "weekly";
+function switchTab(tab) {
+  currentTab = tab;
+  ["weekly","monthly","notes","history"].forEach(t => {
+    document.getElementById("tab-"+t).style.display = t===tab?"block":"none";
+  });
+  document.querySelectorAll(".tab-btn").forEach((b,i) => {
+    b.classList.toggle("active", ["weekly","monthly","notes","history"][i]===tab);
+  });
+  if(tab==="weekly") renderChecklist("weekly", WEEKLY, WK);
+  if(tab==="monthly") renderChecklist("monthly", MONTHLY, MK);
+  if(tab==="notes") renderNotes();
+  if(tab==="history") renderHistory();
+}
+
+// ─── CHECKLIST ───────────────────────────────────────────────────────
+function renderChecklist(period, groups, pk) {
+  const prog = calcProgress(groups, period, pk);
+  const el = document.getElementById("tab-"+period);
+  const label = period==="weekly" ? fmtWeek(pk) : fmtMonth(pk);
+
+  let html = `<div class="section-header">
+    <div>
+      <div class="section-title">${label}</div>
+      <div class="section-sub">${prog.done} of ${prog.total} tasks · ${prog.pct}%</div>
+    </div>
+    ${prog.pct===100?'<div class="all-done-badge">✓ All done</div>':""}
+  </div>`;
+
+  groups.forEach(g => {
+    html += `<div class="cat-block">
+      <div class="cat-label">
+        <div class="cat-bar" style="background:${g.color}"></div>
+        <span class="cat-name" style="color:${g.color}">${g.cat}</span>
+      </div>`;
+    g.tasks.forEach(task => {
+      const done = state[period]?.[pk]?.[task.id]?.done;
+      const doneTime = state[period]?.[pk]?.[task.id]?.time;
+      html += `<div class="task-item${done?" done":""}" onclick="toggleTask('${period}','${pk}','${task.id}','${g.color}')">
+        <div class="check-box${done?" checked":""}" style="--cat-color:${g.color}">
+          <svg class="check-icon" width="10" height="8" viewBox="0 0 10 8">
+            <path d="M1 4l3 3 5-6" stroke="white" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="task-body">
+          <span class="task-text">${task.t}</span>${task.daily?'<span class="daily-badge">DAILY</span>':""}
+          ${done&&doneTime?`<div class="task-time">✓ ${fmtDT(doneTime)}</div>`:""}
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  el.innerHTML = html;
+}
+
+function toggleTask(period, pk, taskId) {
+  if(!state[period]) state[period]={};
+  if(!state[period][pk]) state[period][pk]={};
+  const cur = state[period][pk][taskId];
+  state[period][pk][taskId] = cur?.done ? null : {done:true, time:new Date().toISOString()};
+  save(); updateSummary();
+  renderChecklist(period, period==="weekly"?WEEKLY:MONTHLY, pk);
+}
+
+// ─── NOTES ───────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function renderNotes() {
+  const el = document.getElementById("tab-notes");
+  const notesHtml = state.notes.length===0
+    ? '<div class="empty-state">No notes yet.<br>Record problems, repairs, or future reminders.</div>'
+    : state.notes.map(n => `
+      <div class="note-card">
+        <div class="note-meta">${fmtDT(n.date)}</div>
+        <div class="note-text">${escHtml(n.text)}</div>
+        ${n.photos&&n.photos.length?`<div class="note-photos">${n.photos.map((p,i)=>`
+          <div class="note-photo-wrap">
+            <img class="note-photo" src="${p}" onclick="openLightbox('${p}')" alt="photo">
+            <button class="note-photo-del" onclick="deleteNotePhoto(${n.id},${i})">✕</button>
+          </div>`).join("")}</div>`:""}
+        <div class="note-footer">
+          <button class="btn-del-note" onclick="deleteNote(${n.id})">Delete</button>
+        </div>
+      </div>`).join("");
+
+  el.innerHTML = `
+    <div class="section-header"><div class="section-title">Maintenance Notes</div></div>
+    <div class="note-input-card">
+      <textarea class="note-textarea" id="note-input" placeholder="Record any non-scheduled maintenance, repairs, observed problems or future reminders…"></textarea>
+      <div class="pending-photos" id="pending-photos"></div>
+      <div class="note-actions">
+        <button class="btn-primary" onclick="addNote()">Add Note</button>
+        <button class="btn-photo" onclick="document.getElementById('photo-input').click()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          Add Photo
+        </button>
+      </div>
+    </div>
+    ${notesHtml}`;
+}
+
+function addNote() {
+  const text = (document.getElementById("note-input")?.value||"").trim();
+  if(!text && pendingPhotos.length===0) return;
+  state.notes.unshift({id:Date.now(), text, date:new Date().toISOString(), photos:pendingPhotos.map(p=>p.dataUrl)});
+  pendingPhotos = [];
+  save(); renderNotes();
+}
+
+function deleteNote(id) {
+  state.notes = state.notes.filter(n=>n.id!==id);
+  save(); renderNotes();
+}
+
+function deleteNotePhoto(noteId, i) {
+  const n = state.notes.find(n=>n.id===noteId);
+  if(n&&n.photos) { n.photos.splice(i,1); save(); renderNotes(); }
+}
+
+document.getElementById("photo-input").addEventListener("change", function() {
+  Array.from(this.files).forEach(f => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      pendingPhotos.push({dataUrl:e.target.result});
+      renderPendingPhotos();
+    };
+    reader.readAsDataURL(f);
+  });
+  this.value = "";
+});
+
+function renderPendingPhotos() {
+  const el = document.getElementById("pending-photos");
+  if(!el) return;
+  el.innerHTML = pendingPhotos.map((p,i)=>`
+    <div class="pending-photo-wrap">
+      <img class="pending-photo" src="${p.dataUrl}" alt="">
+      <button class="pending-photo-del" onclick="removePendingPhoto(${i})">✕</button>
+    </div>`).join("");
+}
+
+function removePendingPhoto(i) { pendingPhotos.splice(i,1); renderPendingPhotos(); }
+
+// ─── LIGHTBOX ────────────────────────────────────────────────────────
+function openLightbox(src) {
+  document.getElementById("lightbox-img").src = src;
+  document.getElementById("lightbox").classList.add("open");
+}
+function closeLightbox() {
+  document.getElementById("lightbox").classList.remove("open");
+  document.getElementById("lightbox-img").src = "";
+}
+
+// ─── HISTORY ─────────────────────────────────────────────────────────
+function renderHistory() {
+  const el = document.getElementById("tab-history");
+  const weeks = Object.keys(state.weekly||{}).sort().reverse().slice(0,16);
+  const months = Object.keys(state.monthly||{}).sort().reverse().slice(0,12);
+  function pc(p) { return p===100?"#1a6b3c":p>=50?"#d07000":"#cc2200"; }
+
+  let html = `<div class="section-header"><div class="section-title">History</div></div>`;
+  html += `<div class="hist-section-title">Weekly</div>`;
+  if(!weeks.length) html += `<div class="empty-state" style="padding:16px">No weekly records yet.</div>`;
+  weeks.forEach(wk => {
+    const p = calcProgress(WEEKLY,"weekly",wk);
+    html += `<div class="hist-card"><div class="hist-row"><span class="hist-name">${fmtWeek(wk)}</span><span class="hist-pct" style="color:${pc(p.pct)}">${p.pct}%</span></div><div class="pbar-wrap"><div class="pbar" style="width:${p.pct}%;background:${pc(p.pct)}"></div></div><div class="hist-tasks">${p.done}/${p.total} tasks</div></div>`;
+  });
+  html += `<div class="hist-section-title">Monthly</div>`;
+  if(!months.length) html += `<div class="empty-state" style="padding:16px">No monthly records yet.</div>`;
+  months.forEach(mk => {
+    const p = calcProgress(MONTHLY,"monthly",mk);
+    html += `<div class="hist-card"><div class="hist-row"><span class="hist-name">${fmtMonth(mk)}</span><span class="hist-pct" style="color:${pc(p.pct)}">${p.pct}%</span></div><div class="pbar-wrap"><div class="pbar" style="width:${p.pct}%;background:${pc(p.pct)}"></div></div><div class="hist-tasks">${p.done}/${p.total} tasks</div></div>`;
+  });
+  el.innerHTML = html;
+}
+
+// ─── SERVICE WORKER ──────────────────────────────────────────────────
+if("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────
+updateSummary();
+renderChecklist("weekly", WEEKLY, WK);
+</script>
+</body>
+</html>
